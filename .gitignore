@@ -1,8 +1,5 @@
 # misc
 
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.go.mod
-.go.sum
+/.env
+/go.mod
+/go.sum
