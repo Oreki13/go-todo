@@ -1,10 +1,12 @@
 package main
 
 import (
+	"html/template"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/cast"
 
 	"todoapi/config"
 
@@ -30,37 +32,43 @@ func createdTodo(c *gin.Context) {
 	completed, _ := strconv.Atoi(c.PostForm("completed"))
 	todo := todoModel{Title: c.PostForm("title"), Completed: completed}
 	config.GetDB().Save(&todo)
-	c.JSON(http.StatusCreated, gin.H{
-		"status": http.StatusCreated, "message": "Todo Created!", "resourceId": todo.ID,
-	})
+
+	c.Request.URL.Path = "/todo"
 }
 
 func getTodo(c *gin.Context) {
-	var todos []todoModel
-	var _todos []transformedTodo
 
+	var todos []todoModel
 	config.GetDB().Find(&todos)
 
-	if len(todos) <= 0 {
-		c.JSON(http.StatusCreated, gin.H{
-			"status": http.StatusCreated, "message": "Todo not Found",
-		})
-		return
-	}
+	html := ""
 
 	for _, item := range todos {
-		completed := false
-		if item.Completed == 1 {
-			completed = true
-		} else {
-			completed = false
-		}
-		_todos = append(_todos, transformedTodo{ID: item.ID, Title: item.Title, Completed: completed})
-	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"status":  http.StatusOK,
-		"message": _todos,
+		if item.Completed == 1 {
+			html += `<li><div class="view">
+                <input class="toggle" type="checkbox" id="check" onclick="goCheck(` + cast.ToString(item.ID) + `)"  checked >
+                <label>` + cast.ToString(item.Title) + `</label>
+                    <a class="destroy" href="http://localhost:8080/todo/` + cast.ToString(item.ID) + `"></a>
+                    <!-- <button class="destroy" onclick="deleted()"></button> -->
+            </div></li>
+       `
+		} else {
+			html += `<li><div class="view">
+			<input class="toggle" type="checkbox" id="check" onclick="goCheck(` + cast.ToString(item.ID) + `)" >
+			<label>` + cast.ToString(item.Title) + `</label>
+				<a class="destroy" href="http://localhost:8080/todo/` + cast.ToString(item.ID) + `"></a>
+				<!-- <button class="destroy" onclick="deleted()"></button> -->
+		</div></li>`
+
+		}
+
+	}
+	gin.Default().LoadHTMLGlob("template/*")
+
+	c.HTML(http.StatusOK, "Index", gin.H{
+		"title": "Todo List",
+		"data":  template.HTML(html),
 	})
 
 }
@@ -80,10 +88,7 @@ func deleteTodo(c *gin.Context) {
 	}
 
 	config.GetDB().Delete(&todo)
-	c.JSON(http.StatusOK, gin.H{
-		"status":  http.StatusOK,
-		"message": "todo deleted Succes",
-	})
+	c.Redirect(http.StatusMovedPermanently, "http://localhost:8080/todo")
 
 }
 
@@ -109,15 +114,43 @@ func updateTodo(c *gin.Context) {
 		"message": "todo Updated!",
 	})
 }
+func updateCheck(c *gin.Context) {
+	var todo todoModel
+	todoID := c.Param("id")
+
+	config.GetDB().First(&todo, todoID)
+
+	if todo.ID == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"status":  http.StatusNotFound,
+			"message": "todo not found",
+		})
+		return
+	}
+	completed := 0
+	if todo.Completed == 0 {
+		completed = 1
+	} else {
+		completed = 0
+	}
+	config.GetDB().Model(&todo).Update("completed", completed)
+	c.JSON(http.StatusOK, gin.H{
+		"status":  http.StatusOK,
+		"message": "todo Updated!",
+	})
+}
 
 func main() {
 
 	router := gin.Default()
+	router.LoadHTMLGlob("template/*")
 	router.GET("/todo", getTodo)
 	router.POST("/todo", createdTodo)
-	router.DELETE("/todo/:id", deleteTodo)
+	router.GET("/todo/:id", deleteTodo)
 	router.PATCH("/todo/:id", updateTodo)
+	router.PATCH("/todos/:id", updateCheck)
 
+	router.StaticFS("/css", http.Dir("assets"))
 	router.Run()
 
 }

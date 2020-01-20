@@ -1,0 +1,18 @@
+{{define "Index"}} {{template "Header"}}
+
+<section class="todoapp">
+  <header class="header">
+    <h1>{{.title}}</h1>
+    <input id="input-todo" class="new-todo" placeholder="What needs to be done?" autofocus
+      onkeypress="saveTodo(event)" />
+  </header>
+  <section class="main">
+    <input id="toggle-all" class="toggle-all" type="checkbox" />
+    <label for="toggle-all">Mark all Complete</label>
+    <ul class="todo-list" id="list">
+      {{.data}}
+    </ul>
+  </section>
+</section>
+
+{{template "Footer"}} {{end}}
